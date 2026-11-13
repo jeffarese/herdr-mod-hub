@@ -1,0 +1,7 @@
+{
+  "place": "none",
+  "title": "Mods",
+  "description": "Discover mods people share on herdr.dev, read what their code can reach before installing, and manage the ones you have: turn off, update, roll back, remove with undo.",
+  "version": "1.0.0",
+  "overlay": { "kind": "dialog", "width": 1040, "height": 0.86, "modal": true }
+}
