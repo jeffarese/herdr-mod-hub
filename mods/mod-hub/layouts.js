@@ -292,3 +292,77 @@ export function renameIn(tree, from, to) {
   for (const field of ROOT_FIELDS) if (next[field] === from) next[field] = to;
   return next;
 }
+
+const holdsTabs = (n) => Boolean(n?.content?.tab) || (n?.children ?? []).some(holdsTabs);
+const stackActiveId = (stack) => stack?.active ?? (stack?.children ?? []).find((c) => c && !c.hidden && c.id != null)?.id;
+
+function isPathHidden(path) {
+  for (let i = 0; i < path.length; i++) {
+    if (path[i]?.hidden === true) return true;
+    if (i >= 1 && path[i - 1]?.type === "stack" && stackActiveId(path[i - 1]) !== path[i]?.id) return true;
+  }
+  return false;
+}
+
+function hideSteps(path) {
+  let targetIdx = path.length - 1;
+  for (let k = targetIdx - 1; k >= 1; k--) {
+    const parent = path[k];
+    if (holdsTabs(parent)) break;
+    if (parent.type === "stack" || (parent.children ?? []).length === 1) {
+      if (parent.id) targetIdx = k;
+    } else {
+      break;
+    }
+  }
+  const steps = [];
+  if (path[targetIdx]?.id) steps.push(["layout.hide", { id: path[targetIdx].id }]);
+  const newlyHidden = new Set([path[targetIdx]]);
+  for (let i = targetIdx - 1; i >= 1; i--) {
+    const anc = path[i];
+    if (holdsTabs(anc)) break;
+    const children = anc.children ?? [];
+    const anyVisible = anc.type === "stack"
+      ? false
+      : children.some((c) => c && !c.hidden && !newlyHidden.has(c));
+    if (!anyVisible) {
+      if (anc.id) steps.push(["layout.hide", { id: anc.id }]);
+      newlyHidden.add(anc);
+    } else {
+      break;
+    }
+  }
+  return steps;
+}
+
+function showSteps(path) {
+  const steps = [];
+  for (let i = 1; i < path.length; i++) {
+    if (path[i]?.hidden === true && path[i]?.id) steps.push(["layout.show", { id: path[i].id }]);
+    if (path[i - 1]?.type === "stack" && path[i - 1]?.id && path[i]?.id) {
+      const active = stackActiveId(path[i - 1]);
+      if (active !== path[i].id) steps.push(["layout.select", { stack: path[i - 1].id, child: path[i].id }]);
+    }
+  }
+  if (!steps.length && path.at(-1)?.id) steps.push(["layout.show", { id: path.at(-1).id }]);
+  return steps;
+}
+
+/**
+ * Every toggleable block showing `mod` in the active layout tree (children only, not floating):
+ * [{ id, hidden, show, hide }].
+ */
+export function blocksOf(tree, mod) {
+  if (!tree || typeof tree !== "object" || mod === "workspace-chrome" || mod === "tabs") return [];
+  const out = [];
+  const visit = (node, path = []) => {
+    if (!node || typeof node !== "object") return;
+    const here = [...path, node];
+    if (node.type === "block" && blockMod(node) === mod && typeof node.id === "string") {
+      out.push({ id: node.id, hidden: isPathHidden(here), show: showSteps(here), hide: hideSteps(here) });
+    }
+    for (const child of node.children ?? []) visit(child, here);
+  };
+  visit(tree);
+  return out;
+}

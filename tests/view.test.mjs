@@ -43,7 +43,7 @@ async function setup() {
   const tgz = `${base}/git-graph.tgz`;
   assert.equal(spawnSync("tar", ["-czf", tgz, "-C", `${base}/src`, `herdr-git-graph-${C1}`]).status, 0);
 
-  const harness = { home, closed: [], commands: [], opened: [], props: { overlay: "o1" } };
+  const harness = { home, closed: [], commands: [], opened: [], props: { overlay: "o1" }, layout: structuredClone(mine), shared: { layout: "mine" } };
   harness.exec = async (cmd, args = [], opts = {}) => {
     if (cmd === "herdr-app" && args[0] === "check") return { code: 0, stdout: "Check passed", stderr: "" };
     if (cmd === "herdr-app" && args[0] === "status") return { code: 0, stdout: JSON.stringify({ errors: [] }), stderr: "" };
@@ -235,5 +235,47 @@ test("Escape steps back: picture, review, page, then closes", async () => {
     assert.equal(h.view.detail, null);
     await esc();
     assert.deepEqual(h.harness.closed, ["o1"]);
+  } finally { await h.cleanup(); }
+});
+
+test("Installed and mod page: Hide and Show toggle active layout visibility with Undo", async () => {
+  const h = await setup();
+  try {
+    await h.click("mh-nav-installed");
+    let page = text(h.render());
+    assert.match(page, /Notes/);
+    await h.click("mh-vis-notes");
+    assert.deepEqual(h.harness.commands.at(-1), { name: "layout.hide", args: { id: "notes" } });
+    page = text(h.render());
+    assert.match(page, /Hid Notes/);
+    assert.match(page, /in mine · hidden/);
+
+    // Undo brings it back.
+    await h.click("mh-snack-action");
+    assert.deepEqual(h.harness.commands.at(-1), { name: "layout.show", args: { id: "notes" } });
+    assert.match(text(h.render()), /Showing Notes/);
+
+    // Mod page Shows-in row also toggles visibility.
+    await h.click("mh-mod-notes");
+    await h.click("mh-where-vis-0");
+    assert.deepEqual(h.harness.commands.at(-1), { name: "layout.hide", args: { id: "notes" } });
+    page = text(h.render());
+    assert.match(page, /Hidden/);
+    await h.click("mh-mod-vis");
+    assert.deepEqual(h.harness.commands.at(-1), { name: "layout.show", args: { id: "notes" } });
+  } finally { await h.cleanup(); }
+});
+
+test("Undo shows again only the blocks its Hide changed, not one that was already hidden", async () => {
+  const h = await setup();
+  try {
+    h.harness.layout.children.push({ id: "notes-2", type: "block", hidden: true, content: { mod: "notes" } });
+    await h.click("mh-nav-installed");
+    await h.click("mh-vis-notes");
+    assert.deepEqual(h.harness.commands.at(-1), { name: "layout.hide", args: { id: "notes" } });
+    const before = h.harness.commands.length;
+    await h.click("mh-snack-action");
+    assert.deepEqual(h.harness.commands.slice(before), [{ name: "layout.show", args: { id: "notes" } }]);
+    assert.equal(h.harness.layout.children.find((n) => n.id === "notes-2").hidden, true);
   } finally { await h.cleanup(); }
 });

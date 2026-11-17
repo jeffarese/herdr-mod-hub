@@ -34,11 +34,14 @@ like Herdr's Settings: every color from `theme()`, so light and dark themes both
 - **Installed:** a filter field, then groups (Yours, Copies of Herdr's mods, Turned off), and
   Removed (kept for 30 days). A row: a 36 px tile (the listing's preview, else the initial on a
   color from the terminal palette), the title with a version chip, then "name · source · where it
-  shows"; chips for Error, Update, Edited; a switch. Removed rows have Restore and Delete.
-- **A mod's page:** a 56 px tile, title, version, "name · source"; Open (window) or Open beside
-  (panel), and the switch. Notices for Herdr's errors, an update (with the files that changed),
+  shows" (with "· hidden" when every block of it in the shown layout is hidden); chips for Error,
+  Update, Edited; a small Hide or Show button when the shown layout has a block of it; a switch.
+  Removed rows have Restore and Delete. Built in rows have the same Hide or Show beside Duplicate.
+- **A mod's page:** a 56 px tile, title, version, "name · source"; Hide or Show (when the shown
+  layout has a block of it), Open (window) or Open beside (panel), and the switch. Notices for Herdr's errors, an update (with the files that changed),
   edits since install, and for this screen and for Herdr's own mods. Facts in rows, a 120 px
-  label on the left: About, Shows in (each layout and block), Keys (as ⇧⌘M), Used by, Source
+  label on the left: About, Shows in (each layout and block; a block in the shown layout has a
+  Hidden chip when hidden, and its own Hide or Show), Keys (as ⇧⌘M), Used by, Source
   (repo and commit, See the listing, Unlink; or listings with the same folder name to Link),
   Folder (with Show in Finder), Earlier copy (with Roll back). Then "Remove this mod".
 - **Updates:** Check now and Update all; "Ready to update" rows with "abc1234 → def5678" and the
@@ -73,6 +76,11 @@ like Herdr's Settings: every color from `theme()`, so light and dark themes both
   no `keys.json`). A folder is only ever replaced when it's this listing's earlier install; one
   that appeared while the review was open stops the install. Names in Removed count as taken.
   Then show the mod's page.
+- **Hide / Show:** the lighter switch, for the shown layout only, with no file written: Hide runs
+  `layout.hide` on each showing block of the mod (or the column or stack it is alone in, and any
+  column that leaves empty, never one holding the tabs); Show runs `layout.show` on each hidden
+  node above it and `layout.select` for a stack. The mod keeps running. A snackbar says what
+  changed, and its Undo reverses only the blocks that action changed.
 - **Turn off:** take the mod out of your own layouts (a copy of one of Herdr's mods hands its
   blocks back to the original; any other block is removed and a group it emptied is hidden; a
   pane or stack header goes back to Herdr's tabs), take its keys out, and move its folder to

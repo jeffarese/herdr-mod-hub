@@ -6,7 +6,7 @@
 
 import { View, div, image } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Scrollbar, TextView } from "gpui-base";
-import { appHome, exec, theme, props, closeOverlay, run, readTextFile, writeTextFile, settings, watchFolder, window as herdrWindow } from "herdr";
+import { appHome, exec, theme, props, closeOverlay, run, readTextFile, writeTextFile, settings, watchFolder, window as herdrWindow, layout, shared } from "herdr";
 import * as fs from "fs/promises";
 import { Hub, SELF, rollbackFor } from "./hub.js";
 import { search, sortEntries, SORTS, displayName, repoUrl, recipeSections, forPeople, ago, compact, entryKey } from "./catalog.js";
@@ -14,7 +14,7 @@ import { inventory, groups, fallbackFor, KIND_WORDS } from "./inventory.js";
 import { summary, quiet } from "./review.js";
 import { changedFiles } from "./manifest.js";
 import { prettyKey } from "./keys.js";
-import { describe } from "./layouts.js";
+import { describe, blocksOf } from "./layouts.js";
 import { I, CLEAR, alpha, icon, spinner, tones, button, iconButton, link, toggle, chip, dot, heading, tile, skeleton, fact, notice } from "./ui.js";
 
 const RAIL = 200;
@@ -379,6 +379,39 @@ export default class ModHub extends View {
     closeOverlay(props().overlay);
     if (m.overlay) run("mod.open", { name: m.name });
     else run("pane.split", { direction: "right", mod: m.name });
+  }
+
+  shownBlocks(m) {
+    return m.enabled && !m.self ? blocksOf(layout(), m.name) : [];
+  }
+
+  // Undo puts back only the blocks this changed: another block of the mod that was already
+  // hidden (or shown) stays as it was.
+  setBlocksVisible(m, wantShown, blocks, cx) {
+    for (const b of blocks) {
+      for (const [cmd, args] of wantShown ? b.show : b.hide) run(cmd, args);
+    }
+    const ids = new Set(blocks.map((b) => b.id));
+    cx.notify();
+    this.flash(cx, wantShown ? `Showing ${m.title}` : `Hid ${m.title}`, {
+      action: {
+        label: "Undo",
+        run: (cx) => {
+          const back = this.shownBlocks(m).filter((b) => ids.has(b.id) && b.hidden === !wantShown);
+          if (back.length) this.setBlocksVisible(m, !wantShown, back, cx);
+        },
+      },
+    });
+  }
+
+  // Show every block of the mod when all are hidden, else hide the ones showing.
+  toggleModBlocks(m, cx) {
+    const blocks = this.shownBlocks(m);
+    if (!blocks.length) return;
+    const wantShown = blocks.every((b) => b.hidden);
+    const targets = blocks.filter((b) => (wantShown ? b.hidden : !b.hidden));
+    if (!targets.length) return;
+    this.setBlocksVisible(m, wantShown, targets, cx);
   }
 
   reveal(path) {
@@ -1129,7 +1162,10 @@ export default class ModHub extends View {
     const layouts = [...new Set(m.layouts.filter((l) => l.personal).map((l) => l.layout))];
     const key = m.keys.find((k) => k.section === "global");
     if (!m.enabled) return "off";
-    if (layouts.length) return `in ${layouts.join(", ")}`;
+    const blocks = this.shownBlocks(m);
+    const allHidden = blocks.length > 0 && blocks.every((b) => b.hidden);
+    if (layouts.length) return allHidden ? `in ${layouts.join(", ")} · hidden` : `in ${layouts.join(", ")}`;
+    if (allHidden) return "hidden";
     if (key) return `opens with ${prettyKey(key.keys, herdrWindow()?.platform === "macos")}`;
     if (m.usedBy.length) return `used by ${m.usedBy.join(", ")}`;
     return KIND_WORDS[m.kind].toLowerCase();
@@ -1140,6 +1176,8 @@ export default class ModHub extends View {
     const sub = [m.name !== m.title ? m.name : null, from, this.where(m)].filter(Boolean).join(" · ");
     const busy = Boolean(this.busy[m.name]);
     const bad = tones(t).bad;
+    const blocks = this.shownBlocks(m);
+    const allHidden = blocks.length > 0 && blocks.every((b) => b.hidden);
     return h_flex()
       .id(`mh-mod-${m.name}`)
       .w_full()
@@ -1179,6 +1217,7 @@ export default class ModHub extends View {
           .when(m.errors.length > 0, (el) => el.child(chip(t, "Error", { color: bad, bg: alpha(bad, "1f"), glyph: "alert" })))
           .when(Boolean(m.update), (el) => el.child(chip(t, "Update", { color: t.accent, bg: alpha(t.accent, "1f"), glyph: "download" })))
           .when(Boolean(m.edited), (el) => el.child(chip(t, "Edited", { glyph: "code" })))
+          .when(blocks.length > 0, (el) => el.child(button(t, `mh-vis-${m.name}`, allHidden ? "Show" : "Hide", (_e, cx) => this.toggleModBlocks(m, cx), { small: true, kind: "subtle", tip: allHidden ? "Show in this layout" : "Hide in this layout" })))
           .when(!m.self, (el) => el.child(toggle(t, `mh-toggle-${m.name}`, m.enabled, (_e, cx) => (m.enabled ? this.setOff(m, cx) : this.setOn(m, cx)), { busy, tip: m.enabled ? "Turn off" : "Turn on" }))),
       );
   }
@@ -1214,6 +1253,8 @@ export default class ModHub extends View {
     const bad = tones(t).bad;
     const warn = tones(t).warn;
     const earlier = rollbackFor(this.disk?.state, m.name);
+    const blocks = this.shownBlocks(m);
+    const allHidden = blocks.length > 0 && blocks.every((b) => b.hidden);
     const from = m.shipped ? "Built in" : m.source ? m.source.fullName : m.clonedFrom ? `Copy of ${m.clonedFrom}` : "Added by hand";
     const top = h_flex()
       .w_full()
@@ -1233,6 +1274,7 @@ export default class ModHub extends View {
           .flex_none()
           .gap(10)
           .items_center()
+          .when(blocks.length > 0, (el) => el.child(button(t, "mh-mod-vis", allHidden ? "Show" : "Hide", (_e, cx) => this.toggleModBlocks(m, cx), { kind: "subtle" })))
           .when(m.enabled && (m.overlay || m.kind === "panel") && !m.self, (el) => el.child(button(t, "mh-mod-open", m.overlay ? "Open" : "Open beside", () => this.openMod(m), { glyph: "play" })))
           .when(m.shipped, (el) => el.child(button(t, "mh-mod-duplicate", "Duplicate to change it", (_e, cx) => this.duplicate(m, cx), { glyph: "copy", busy })))
           .when(!m.shipped && !m.self, (el) =>
@@ -1267,8 +1309,20 @@ export default class ModHub extends View {
     if (m.self) alerts.child(notice(t, t.accent, "puzzle", "This is the screen you're looking at", "It can't turn itself off. Delete its folder to remove it."));
     if (m.shipped) alerts.child(notice(t, t.dim, "box", "Herdr ships this mod", "Herdr puts it back as it was on every start, so it can't be turned off or removed. Duplicate it to make a copy that's yours to change."));
 
+    const activeLayout = shared("layout");
     const shows = m.layouts.length
-      ? v_flex().gap(5).children(m.layouts.map((l, i) => h_flex().id(`mh-where-${i}`).gap(7).items_center().child(icon("layers", 13, t.dim)).child(div().text_color(t.foreground).child(l.layout)).child(div().text_color(t.dim).child(describe(l.ref))).when(!l.personal, (el) => el.child(chip(t, "Herdr's layout")))))
+      ? v_flex().gap(5).children(m.layouts.map((l, i) => {
+        const b = l.layout === activeLayout && l.ref.where === "block" && l.ref.id
+          ? blocks.find((x) => x.id === l.ref.id)
+          : null;
+        return h_flex().id(`mh-where-${i}`).gap(7).items_center()
+          .child(icon("layers", 13, t.dim))
+          .child(div().text_color(t.foreground).child(l.layout))
+          .child(div().text_color(t.dim).child(describe(l.ref)))
+          .when(!l.personal, (el) => el.child(chip(t, "Herdr's layout")))
+          .when(Boolean(b?.hidden), (el) => el.child(chip(t, "Hidden")))
+          .when(Boolean(b), (el) => el.child(button(t, `mh-where-vis-${i}`, b.hidden ? "Show" : "Hide", (_e, cx) => this.setBlocksVisible(m, b.hidden, [b], cx), { small: true, kind: "subtle" })));
+      }))
       : div().text_color(t.muted).child(`Not in any layout. ${KIND_WORDS[m.kind]}.`);
     const keys = m.keys.length
       ? v_flex().gap(5).children(m.keys.map((k, i) => h_flex().id(`mh-key-${i}`).gap(8).items_center().child(div().px(6).h(20).rounded(5).bg(t.raised).border_1().border_color(t.border).flex().items_center().text_size(12).font_family(settings()?.font ?? "JetBrains Mono").child(prettyKey(k.keys, mac))).child(div().text_color(t.dim).truncate().child(typeof k.action === "string" ? k.action : k.action?.command ?? ""))))
@@ -1421,6 +1475,8 @@ export default class ModHub extends View {
     page.child(this.searchField(t, "builtin"));
     for (const m of list) {
       const layouts = [...new Set(m.layouts.map((l) => l.layout))];
+      const blocks = this.shownBlocks(m);
+      const allHidden = blocks.length > 0 && blocks.every((b) => b.hidden);
       page.child(
         h_flex()
           .id(`mh-builtin-${m.name}`)
@@ -1439,7 +1495,14 @@ export default class ModHub extends View {
           })
           .child(tile(t, m.name, 32))
           .child(v_flex().flex_1().min_w(0).gap(2).child(div().text_size(13.5).text_color(t.foreground).child(m.title)).child(div().truncate().text_size(12).text_color(t.dim).child([m.name !== m.title ? m.name : null, layouts.length ? `in ${layouts.join(", ")}` : KIND_WORDS[m.kind].toLowerCase()].filter(Boolean).join(" · "))))
-          .child(button(t, `mh-dup-${m.name}`, "Duplicate", (_e, cx) => this.duplicate(m, cx), { small: true, kind: "subtle", glyph: "copy", busy: Boolean(this.busy[m.name]) })),
+          .child(
+            h_flex()
+              .flex_none()
+              .gap(8)
+              .items_center()
+              .when(blocks.length > 0, (el) => el.child(button(t, `mh-vis-${m.name}`, allHidden ? "Show" : "Hide", (_e, cx) => this.toggleModBlocks(m, cx), { small: true, kind: "subtle" })))
+              .child(button(t, `mh-dup-${m.name}`, "Duplicate", (_e, cx) => this.duplicate(m, cx), { small: true, kind: "subtle", glyph: "copy", busy: Boolean(this.busy[m.name]) })),
+          ),
       );
     }
     if (!list.length) page.child(this.empty(t, "search", `No built-in mod matches “${q}”`, null));

@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseIndex, search, sortEntries, displayName, recipeSections, forPeople, safePath, candidatesFor, ago, compact, repoUrl, tarballUrl } from "../mods/mod-hub/catalog.js";
-import { references, detach, reattach, renameIn as renameLayout, describe } from "../mods/mod-hub/layouts.js";
+import { references, detach, reattach, renameIn as renameLayout, describe, blocksOf } from "../mods/mod-hub/layouts.js";
 import { normalizeKey, targets, bindingsOf, strip, restore, merge, renameIn as renameKeys, prettyKey } from "../mods/mod-hub/keys.js";
 import { analyze, summary, quiet } from "../mods/mod-hub/review.js";
 import { ignored, fingerprint, diff, freeName, renameInText, changedFiles } from "../mods/mod-hub/manifest.js";
@@ -237,4 +237,50 @@ test("reattach drops the block Herdr placed on its own when the folder came back
   const { tree: back, failed } = reattach(placed, ops);
   assert.deepEqual(failed, []);
   assert.deepEqual(back, tree);
+});
+
+test("blocksOf finds toggleable blocks, detects hidden ancestors and stacks, and skips chrome/floating", () => {
+  const tree = {
+    id: "root",
+    type: "row",
+    children: [
+      { id: "brand", type: "block", content: { mod: "workspace-chrome" } },
+      { id: "tabs", type: "block", content: { mod: "tabs" } },
+      {
+        id: "panel",
+        type: "column",
+        hidden: true,
+        children: [
+          {
+            id: "panel-body",
+            type: "stack",
+            active: "files",
+            children: [
+              { id: "files", type: "block", content: { mod: "files" } },
+              { id: "changes", type: "block", content: { mod: "changes" } },
+            ],
+          },
+        ],
+      },
+      {
+        id: "sidebar-right",
+        type: "column",
+        children: [{ id: "prs", type: "block", content: { mod: "github-prs" } }],
+      },
+    ],
+    floating: [{ id: "prs-float", content: { mod: "github-prs" } }],
+  };
+  assert.deepEqual(blocksOf(tree, "workspace-chrome"), []);
+  assert.deepEqual(blocksOf(tree, "tabs"), []);
+  assert.deepEqual(blocksOf(tree, "github-prs"), [
+    { id: "prs", hidden: false, show: [["layout.show", { id: "prs" }]], hide: [["layout.hide", { id: "sidebar-right" }]] },
+  ]);
+  assert.deepEqual(blocksOf(tree, "changes"), [
+    {
+      id: "changes",
+      hidden: true,
+      show: [["layout.show", { id: "panel" }], ["layout.select", { stack: "panel-body", child: "changes" }]],
+      hide: [["layout.hide", { id: "panel" }]],
+    },
+  ]);
 });

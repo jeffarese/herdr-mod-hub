@@ -52,6 +52,7 @@ the page, from a page to the list, then closes.
 | See what it is | Click its card: its screenshot (click it for full size), stars, last update, and its recipe's "What you see" and "How it behaves". |
 | Install it | **Install** on the card or the page. A review opens first; nothing changes until you confirm. |
 | Turn a mod off for now | **Installed**, then its switch. It leaves your layouts and keys; **Undo** or the switch puts it back where it was. |
+| Hide a panel without turning it off | **Hide** on its row in **Installed** or **Built in**, or on its page. It hides the mod's blocks in the layout you're on (and a sidebar it leaves empty), and the mod keeps running; **Show** or **Undo** brings them back. A "Shows in" row on the page hides or shows that one block. |
 | See where a mod shows | Click it in **Installed**: the layouts and blocks it's in, its keys, the mods that open it. |
 | Remove a mod | Its page, **Remove**. It's kept under **Removed** for 30 days, with **Restore**. |
 | Update | **Updates** shows what changed upstream, file by file. **Update**, or **Update all**. |
