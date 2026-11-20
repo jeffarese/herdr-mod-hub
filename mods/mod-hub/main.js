@@ -4,6 +4,7 @@
 //
 // The screen only draws and asks; hub.js does every change on disk.
 
+import { currentSidebar, sidebarButton } from "./sidebar-rail.js";
 import { View, div, image } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Scrollbar, TextView } from "gpui-base";
 import { appHome, exec, theme, props, closeOverlay, run, readTextFile, writeTextFile, settings, watchFolder, window as herdrWindow, layout, shared } from "herdr";
@@ -108,7 +109,7 @@ export default class ModHub extends View {
       this.inputs[id] = input;
     }
     this.handle = cx.focus_handle();
-    this.handle.focus();
+    if (!currentSidebar("mod-hub")) this.handle.focus();
 
     cx.spawn(async (cx) => {
       let step = "reading the gallery cache";
@@ -576,24 +577,35 @@ export default class ModHub extends View {
   render(cx) {
     const t = theme();
     const key = this.detail ? `${this.detail.type}-${this.detail.key ?? this.detail.name}` : this.page;
+    const width = this.width + RAIL;
+    const fold = sidebarButton("mod-hub", width);
+    const resized = (size, cx) => {
+      // Sizes come zoomed (Herdr's zoom setting); lengths set here are zoomed after.
+      const zoom = Number(settings()?.zoom) || 1;
+      const width = size.width / zoom - RAIL;
+      const height = size.height / zoom;
+      if (Math.abs(width - this.width) < 1 && Math.abs(height - this.height) < 1) return;
+      this.width = width;
+      this.height = height;
+      cx.notify();
+    };
+    if (width < 160 && !props()?.overlay) {
+      return v_flex().id("mod-hub-rail").size_full().items_center().pt(4).gap(6).bg(t.chrome).on_size_change(resized)
+        .when(fold, el => el.child(fold))
+        .child(div().id("open-mod-hub").size(28).flex_none().flex().items_center().justify_center().rounded(5)
+          .role("button").accessibility_label("Open Mod Hub").tooltip("Open Mod Hub").cursor_pointer()
+          .text_color(t.muted).hover(s => s.bg(t.hover).text_color(t.foreground))
+          .on_click(() => run("mod.open", { name: "mod-hub" })).child(icon("puzzle", 16)));
+    }
     return h_flex()
       .id("mod-hub")
       .track_focus(this.handle)
       .on_key_down((e, cx) => this.key(e, cx))
-      .on_size_change((size, cx) => {
-        // Sizes come zoomed (Herdr's zoom setting); lengths set here are zoomed after.
-        const zoom = Number(settings()?.zoom) || 1;
-        const width = size.width / zoom - RAIL;
-        const height = size.height / zoom;
-        if (Math.abs(width - this.width) < 1 && Math.abs(height - this.height) < 1) return;
-        this.width = width;
-        this.height = height;
-        cx.notify();
-      })
+      .on_size_change(resized)
       .size_full()
       .min_h(0)
       .items_start()
-      .child(this.rail(t, cx))
+      .child(this.rail(t, cx, fold))
       .child(
         div()
           .id("mh-main")
@@ -642,7 +654,7 @@ export default class ModHub extends View {
 
   // The rail ------------------------------------------------------------------------------
 
-  rail(t, cx) {
+  rail(t, cx, fold) {
     const mine = this.mods.filter((m) => !m.shipped);
     const updates = this.mods.filter((m) => m.update).length;
     const counts = { installed: mine.length || null, updates: updates || null, builtin: this.mods.filter((m) => m.shipped).length || null };
@@ -663,7 +675,8 @@ export default class ModHub extends View {
           .pb(14)
           .items_center()
           .child(icon("puzzle", 17, t.accent))
-          .child(div().text_size(16).font_semibold().text_color(t.foreground).child("Mods")),
+          .child(div().flex_1().text_size(16).font_semibold().text_color(t.foreground).child("Mods"))
+          .when(fold, el => el.child(fold)),
       )
       .children(
         PAGES.map((p) => {

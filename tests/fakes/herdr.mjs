@@ -24,6 +24,9 @@ export const run = (name, args) => {
   }
 };
 export const layout = () => h().layout ?? null;
+export const panes = () => [];
+export const placement = () => null;
+export const setShared = (k, v) => { h().shared[k] = v; };
 export const shared = (k) => h().shared?.[k] ?? null;
 export const readTextFile = async (path) => { try { return await (await import("node:fs/promises")).readFile(path, "utf8"); } catch { return null; } };
 export const writeTextFile = async (path, text) => { await (await import("node:fs/promises")).writeFile(path, text); return null; };

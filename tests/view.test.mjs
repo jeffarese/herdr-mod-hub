@@ -279,3 +279,20 @@ test("Undo shows again only the blocks its Hide changed, not one that was alread
     assert.equal(h.harness.layout.children.find((n) => n.id === "notes-2").hidden, true);
   } finally { await h.cleanup(); }
 });
+
+test("a collapsed sidebar opens the full Mod Hub from its icon", async () => {
+  const h = await setup();
+  try {
+    h.harness.props = {};
+    h.harness.layout = { type: "row", children: [
+      { content: { tab: "active" } }, { id: "sidebar-right", size: { px: 52 }, content: { mod: "mod-hub" } },
+    ] };
+    h.render().props.on_size_change({ width: 52, height: 100 }, h.cx);
+    assert.ok(find(h.render(), "expand"));
+    assert.equal(find(h.render(), "mh-main"), null);
+    await h.click("open-mod-hub");
+    assert.deepEqual(h.harness.commands.at(-1), { name: "mod.open", args: { name: "mod-hub" } });
+  } finally {
+    await h.cleanup();
+  }
+});
