@@ -6,7 +6,9 @@ A mod for the [Herdr](https://herdr.dev) desktop app: one screen for every mod. 
 people share in the gallery, read what a mod's code can reach before you install it, and manage
 the mods you have: turn them off and on, update them, roll back, remove them with undo.
 
-![A dialog titled Mods over the Herdr window. A sidebar lists Discover, Installed (8), Updates and Built in (21), and at its foot "Gallery: 757 mods, updated 1 min ago". The Discover page shows a search field, a Popular / Recently updated switch, and a grid of cards: Skillshare, Agenttrail, Nvim, Auto Title, Pulse, Insights, Gitview, Git Graph and Atuin Threads, each with its screenshot, author, description, stars, last update and an Install button.](preview.png)
+![The Mods dialog open over the Herdr window, which it dims. Its sidebar lists Discover (selected), Installed (11), Updates and Built in (21), and at its foot "Gallery: 1k mods, Updated 1 min ago" and "Open the mods folder". The Discover page says "1047 mods people share on herdr.dev" and shows a search field, a Popular / Recently updated switch, and a grid of cards: Skillshare, SkillsGate, Agenttrail, Nvim, Auto Title and Pulse, each with its screenshot, author, description, stars, last update and an Install button, and a third row starting below. Behind the dialog: the Sessions sidebar on the left with agents on this computer and on studio, a Claude Code session with a header showing its model, context and limits, pull requests and system stats on the right with the servers that are running, and two notifications in the bottom right corner. The gallery is the real one on herdr.dev; the sessions, projects and pull requests around it are made up.](preview.png)
+
+*Around it: the [Sessions sidebar](https://github.com/jeffarese/herdr-agents-sidebar) on the left, a pane header with the model and limits, [pull requests](https://github.com/jeffarese/herdr-prs) and [stats](https://github.com/jeffarese/herdr-stats-mod) on the right with what's running, and two notifications in the corner. Every session in it is made up.*
 
 Herdr has no screen for mods. You add one by asking an agent or copying a folder, take it out
 by deleting the folder, and to see which mods you have you open `~/.config/herdr-app/mods`.
@@ -146,6 +148,17 @@ herdr-app check mods/mod-hub
 - Herdr stops a script that runs for half a second at a stretch, so anything heavy is done in
   one pass or in pieces.
 - **[RECIPE.md](RECIPE.md)** is the brief an agent can rebuild the mod from.
+- **[docs/demo](docs/demo)** says how the README's picture is taken.
+
+## Works well with
+
+The pictures above are one Herdr window with these mods running together:
+
+- [Sessions sidebar](https://github.com/jeffarese/herdr-agents-sidebar): every agent and shell on all your machines in one sidebar, with sub-agents and background work.
+- [Pull requests](https://github.com/jeffarese/herdr-prs): your pull requests and the state of their checks, in a sidebar.
+- [Stats](https://github.com/jeffarese/herdr-stats-mod): CPU, memory, GPU, network and temperatures beside your terminals, and which agent is using them.
+- [Quick switcher](https://github.com/jeffarese/herdr-bar-mod): ⌘K to any agent, tab, pane or space on every machine.
+- [Outside](https://github.com/jeffarese/herdr-outside): the agents and terminals herdr-core runs outside your spaces.
 
 ## License
 
