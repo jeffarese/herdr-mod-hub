@@ -2,7 +2,7 @@
 # The README's picture, on a showcase stage (~/workspace/herdr/herdr-showcase): the Mods dialog
 # open on Discover over the default scene. stage.sh runs it after the cast, with the stage folder.
 #
-#   SHOWCASE_TFVPN=0 SHOWCASE_HOOK=$PWD/docs/demo/showcase.sh sh ~/workspace/herdr/herdr-showcase/stage.sh > /tmp/stage.txt
+#   SHOWCASE_VPN=0 SHOWCASE_HOOK=$PWD/docs/demo/showcase.sh sh ~/workspace/herdr/herdr-showcase/stage.sh > /tmp/stage.txt
 #   w=$(head -n 1 /tmp/stage.txt)
 #
 # showcase-shots.sh does all of it, pictures included.
